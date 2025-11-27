@@ -11,6 +11,8 @@ const Icons = {
   Hash: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>,
   Play: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
   Pause: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>,
+  // 新增 Stop 图标 (实心正方形)
+  Stop: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="5" y="5" width="14" height="14"></rect></svg>,
   Check: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
   ChevronDown: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>,
   List: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
@@ -152,8 +154,6 @@ export default function App() {
     const strVal = String(val).trim();
     if (!strVal) return 0;
 
-    // 1. 优先尝试提取数字 (兼容 4.5, 4,5, 4.5分, Rating: 4.5)
-    // 预处理：全角转半角，逗号转点
     let normalized = strVal.replace(/[\uff01-\uff5e]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
     normalized = normalized.replace(',', '.');
 
@@ -163,7 +163,6 @@ export default function App() {
       if (!isNaN(num) && num > 0) return num;
     }
 
-    // 2. 如果没有数字，尝试数星星 (★)
     if (strVal.includes('★')) {
       return (strVal.match(/★/g) || []).length;
     }
@@ -209,7 +208,6 @@ export default function App() {
                else if(v === 'dropped' || v.includes('弃')) entry.status = 'dropped';
                else if(v === 'wishlist' || v.includes('想')) entry.status = 'wishlist';
             }
-            // 修复：增强评分字段识别，增加 score, star 等关键词
             else if(h.includes('rate') || h.includes('评分') || h.includes('score') || h.includes('star') || h.includes('推荐')) {
                entry.rating = parseRating(val);
             }
@@ -382,7 +380,8 @@ export default function App() {
             <FilterKnob status="watching" icon={<Icons.Play />} label="追剧中" />
             <FilterKnob status="wishlist" icon={<Icons.Pause />} label="待办/暂停" />
             <FilterKnob status="completed" icon={<Icons.Check />} label="已看完" />
-            <FilterKnob status="dropped" icon={<Icons.Trash />} label="弃剧" />
+            {/* 修复：这里改成 Icons.Stop */}
+            <FilterKnob status="dropped" icon={<Icons.Stop />} label="弃剧" />
           </div>
         </div>
 
