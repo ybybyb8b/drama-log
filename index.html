@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 基础图标，通常是 favicon.ico -->
+    <link rel="icon" href="/favicon.ico" />
+    
+    <!-- 视口设置：禁止缩放以获得类似原生 App 的体验 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <title>Retro TV Log</title>
+    
+    <!-- PWA 核心清单文件 -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- iOS (iPhone/iPad) 专用 PWA 配置 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RetroTV">
+    
+    <!-- iOS 桌面图标 -->
+    <!-- 注意：如果没有 logo192.png，可以暂时改回 favicon.ico，但建议使用高清 PNG 图片 -->
+    <link rel="apple-touch-icon" href="/logo192.png">
+  </head>
+  <body>
+    <!-- React 应用挂载点 -->
+    <div id="root"></div>
+    
+    <!-- 引用 React 入口文件 (Vite 模式) -->
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
