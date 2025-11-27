@@ -17,7 +17,7 @@ const Icons = {
   Book: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>,
   Upload: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>,
   Download: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
-  Desktop: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>,
+  Star: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
 };
 
 const paperTexture = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E")`;
@@ -67,59 +67,19 @@ export default function App() {
   const [currentDrama, setCurrentDrama] = useState(null);
   const [activeDropdown, setActiveDropdown] = useState(null);
   
-  // PWA 相关状态
-  const [installPrompt, setInstallPrompt] = useState(null);
-  const [isIOS, setIsIOS] = useState(false);
-  
   const fileInputRef = useRef(null);
 
   useEffect(() => { localStorage.setItem('retro_tv_drama_list_v9', JSON.stringify(dramas)); }, [dramas]);
   useEffect(() => { localStorage.setItem('retro_tv_hidden_v3', JSON.stringify(hiddenSuggestions)); }, [hiddenSuggestions]);
 
-  // --- PWA 核心逻辑 ---
   useEffect(() => {
-    // 1. 检测是否是 iOS 设备
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIphone = /iphone|ipad|ipod/.test(userAgent);
-    setIsIOS(isIphone);
-
-    // 2. 监听安装事件 (Android/Chrome)
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault(); 
-      setInstallPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // 3. 注册 Service Worker (启用离线能力)
     if ('serviceWorker' in navigator) {
-      // 确保 service-worker.js 位于 public 目录下
       navigator.serviceWorker.register('/service-worker.js')
         .then(reg => console.log('SW Registered'))
         .catch(err => console.log('SW Fail', err));
     }
-
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
-  const handleInstallClick = async () => {
-    // 如果是 iOS，弹出提示
-    if (isIOS) {
-      alert("在 iPhone 上安装：\n1. 点击下方浏览器的“分享”按钮\n2. 向下滑动并选择“添加到主屏幕”");
-      return;
-    }
-    // 如果是 Android/PC 且捕获了安装事件
-    if (installPrompt) {
-      installPrompt.prompt();
-      const { outcome } = await installPrompt.userChoice;
-      console.log(`User response: ${outcome}`);
-      setInstallPrompt(null);
-    } else {
-      // 如果已经安装或不支持
-      alert("此设备可能已安装应用，或请使用浏览器的“添加到主屏幕”功能。");
-    }
-  };
-
-  // --- 智能联想逻辑 ---
   const getUniqueValues = (field) => {
     const counts = {};
     dramas.forEach(d => {
@@ -186,6 +146,31 @@ export default function App() {
     setIsModalOpen(false);
   };
 
+  // --- 万能评分解析函数 (修复版) ---
+  const parseRating = (val) => {
+    if (!val) return 0;
+    const strVal = String(val).trim();
+    if (!strVal) return 0;
+
+    // 1. 优先尝试提取数字 (兼容 4.5, 4,5, 4.5分, Rating: 4.5)
+    // 预处理：全角转半角，逗号转点
+    let normalized = strVal.replace(/[\uff01-\uff5e]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
+    normalized = normalized.replace(',', '.');
+
+    const numMatch = normalized.match(/(\d+(\.\d+)?)/);
+    if (numMatch) {
+      const num = parseFloat(numMatch[0]);
+      if (!isNaN(num) && num > 0) return num;
+    }
+
+    // 2. 如果没有数字，尝试数星星 (★)
+    if (strVal.includes('★')) {
+      return (strVal.match(/★/g) || []).length;
+    }
+
+    return 0;
+  };
+
   const handleImport = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -224,13 +209,13 @@ export default function App() {
                else if(v === 'dropped' || v.includes('弃')) entry.status = 'dropped';
                else if(v === 'wishlist' || v.includes('想')) entry.status = 'wishlist';
             }
-            else if(h.includes('rate') || h.includes('评分')) {
-               if (!isNaN(parseFloat(val))) entry.rating = parseFloat(val);
-               else if (val.includes('★')) entry.rating = (val.match(/★/g) || []).length;
+            // 修复：增强评分字段识别，增加 score, star 等关键词
+            else if(h.includes('rate') || h.includes('评分') || h.includes('score') || h.includes('star') || h.includes('推荐')) {
+               entry.rating = parseRating(val);
             }
             else if(h.includes('plat') || h.includes('平台')) entry.platform = val;
-            else if(h.includes('group') || h.includes('系列') || h.includes('原作')) entry.group = val;
-            else if(h.includes('actor') || h.includes('主演')) entry.actors = val;
+            else if(h.includes('group') || h.includes('系列') || h.includes('原作') || h.includes('original')) entry.group = val;
+            else if(h.includes('actor') || h.includes('主演') || h.includes('cast')) entry.actors = val;
             else if(h.includes('tag') || h.includes('标签')) entry.tags = val;
             else if(h.includes('note') || h.includes('备注')) entry.note = val;
           });
@@ -256,7 +241,7 @@ export default function App() {
   };
 
   const handleExport = () => {
-    const headers = ["Title", "OriginalWork", "Cast", "Tags", "Watched", "Total", "Status", "Rating", "Platform", "Note"];
+    const headers = ["剧名", "原作", "主演", "标签", "已看", "总集", "状态", "评分", "平台", "备注"];
     const csvContent = [
       headers.join(","),
       ...dramas.map(d => [
@@ -283,7 +268,6 @@ export default function App() {
     document.body.removeChild(link);
   };
 
-  // --- 安全的搜索过滤 ---
   const filtered = dramas.filter(d => {
     const s = searchQuery.toLowerCase();
     const match = (val) => String(val || "").toLowerCase().includes(s);
@@ -363,11 +347,6 @@ export default function App() {
           </div>
           
           <div className="flex gap-2 sm:gap-3 flex-wrap">
-            <button onClick={handleInstallClick} className="bg-[#4ade80] text-[#1a1a1a] px-4 py-3 rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_rgba(0,0,0,0.1)] transition-all flex items-center gap-2 font-bold active:translate-y-[2px] active:shadow-none border-2 border-[#33a852] group">
-              <Icons.Desktop />
-              <span className="hidden sm:inline text-xs tracking-wider">INSTALL</span>
-            </button>
-
             <button onClick={handleExport} className="bg-[#dcd8cf] text-[#555] px-4 py-3 rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_rgba(0,0,0,0.1)] transition-all flex items-center gap-2 font-bold active:translate-y-[2px] active:shadow-none border-2 border-[#bbb] group">
               <Icons.Download /> 
               <span className="hidden sm:inline text-xs tracking-wider">BACKUP</span>
@@ -415,7 +394,6 @@ export default function App() {
              </div>
           ) : (
              filtered.map((drama, index) => {
-               // 修复：状态回退保护，防止 undefined 报错白屏
                const cfg = statusConfig[drama.status] || statusConfig['watching'];
                const progress = drama.totalEpisodes ? Math.min(100, (drama.watchedEpisodes/drama.totalEpisodes)*100) : 0;
                
@@ -442,8 +420,35 @@ export default function App() {
                               <h3 className="font-bold text-[#2b2b2b] text-lg leading-tight tracking-wide line-clamp-2" style={{textShadow: '1px 1px 0 rgba(255,255,255,0.5)'}}>
                                 {drama.title}
                               </h3>
+                              
+                              {/* Rating Display */}
+                              {drama.rating > 0 && (
+                                <div className="flex items-center gap-1 mb-2 mt-1">
+                                  <div className="flex text-[10px]">
+                                    {[1, 2, 3, 4, 5].map((star) => {
+                                      let fill = 0;
+                                      if (drama.rating >= star) fill = 100;
+                                      else if (drama.rating >= star - 0.5) fill = 50;
+
+                                      return (
+                                        <svg key={star} width="12" height="12" viewBox="0 0 24 24" className="text-[#fbbf24]">
+                                          <defs>
+                                            <linearGradient id={`grad-${drama.id}-${star}`}>
+                                              <stop offset={`${fill}%`} stopColor="currentColor"/>
+                                              <stop offset={`${fill}%`} stopColor="#d1d5db"/>
+                                            </linearGradient>
+                                          </defs>
+                                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill={`url(#grad-${drama.id}-${star})`} />
+                                        </svg>
+                                      );
+                                    })}
+                                  </div>
+                                  <span className="text-[10px] font-mono text-[#666] font-bold pt-0.5 opacity-60 ml-0.5">{drama.rating}</span>
+                                </div>
+                              )}
+
                               {drama.actors && (
-                                <div className="flex items-center gap-1 text-[10px] text-[#555] font-mono mt-1 mb-1">
+                                <div className="flex items-center gap-1 text-[10px] text-[#555] font-mono mt-0 mb-1">
                                   <Icons.User />
                                   <span className="truncate">{drama.actors}</span>
                                 </div>
@@ -472,7 +477,7 @@ export default function App() {
                            </div>
                         </div>
 
-                        {/* Controls - Fixed Z-Index here */}
+                        {/* Controls */}
                         <div className="w-12 flex flex-col items-center gap-4 py-2 bg-[#222] rounded-xl border border-[#444] shadow-inner relative z-20">
                            <button 
                              onClick={(e) => { e.stopPropagation(); handleEdit(drama); }} 
