@@ -1,4 +1,4 @@
-const CACHE_NAME = 'retro-tv-v2';
+const CACHE_NAME = 'retro-tv-v3';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -47,3 +47,4 @@ self.addEventListener('activate', (event) => {
   );
 
 });
+
